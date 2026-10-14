@@ -10,7 +10,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRemainingSeconds, useServerOffset } from "@/lib/hooks";
 import { AddRusheeDialog } from "@/components/AddRusheeDialog";
 import {
-  computeVerdict, type Candidate, type Tally, type Verdict, type VotingSession,
+  computeVerdict, QUORUM_REQUIRED, type Candidate, type Tally, type Verdict, type VotingSession,
 } from "@/lib/types";
 
 const supabase = createClient();
@@ -20,7 +20,6 @@ interface HistoryEntry {
   candidateId: string;
   sessionId: string;
   tally: Tally;
-  quorum: number;
 }
 
 function fmt(s: number) {
@@ -50,7 +49,6 @@ export default function AdminPage() {
   const [tallyRow, setTallyRow] = useState<{ sessionId: string; tally: Tally } | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [timerSecs, setTimerSecs] = useState(90);
-  const [quorum, setQuorum] = useState(30);
   const [error, setError] = useState<string | null>(null);
   const closing = useRef(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -81,7 +79,6 @@ export default function AdminPage() {
         const row = data[0] as VotingSession;
         setSession(row);
         setTimerSecs(row.timer_seconds);
-        setQuorum(row.quorum_required);
       }
     }, 0);
 
@@ -135,7 +132,6 @@ export default function AdminPage() {
             candidateId: s.candidate_id!,
             sessionId: s.id,
             tally: parseTally(tallyData),
-            quorum: s.quorum_required,
           };
         }),
       );
@@ -174,7 +170,7 @@ export default function AdminPage() {
     setError(null);
     const { data, error } = await supabase
       .from("voting_sessions")
-      .insert({ candidate_id: c.id, status: "idle", timer_seconds: timerSecs, quorum_required: quorum })
+      .insert({ candidate_id: c.id, status: "idle", timer_seconds: timerSecs, quorum_required: QUORUM_REQUIRED })
       .select()
       .single();
     if (error) return setError(error.message);
@@ -190,7 +186,7 @@ export default function AdminPage() {
       .update({
         status: "open",
         timer_seconds: timerSecs,
-        quorum_required: quorum,
+        quorum_required: QUORUM_REQUIRED,
         started_at: new Date(startMs).toISOString(),
         ends_at: new Date(startMs + timerSecs * 1000).toISOString(),
       })
@@ -201,7 +197,7 @@ export default function AdminPage() {
 
   const candidate = candidates.find((c) => c.id === session?.candidate_id) ?? null;
   const status = session?.status ?? "idle";
-  const verdict = tally && session ? computeVerdict(tally, session.quorum_required) : null;
+  const verdict = tally && session ? computeVerdict(tally) : null;
   const locked = status === "open";
 
   const historyById = new Map(history.map((h) => [h.candidateId, h]));
@@ -239,7 +235,7 @@ export default function AdminPage() {
           {votedCandidates.length === 0 && <p className="text-sm text-white/30">No completed votes yet.</p>}
           {votedCandidates.map((c) => {
             const h = historyById.get(c.id)!;
-            const v = computeVerdict(h.tally, h.quorum);
+            const v = computeVerdict(h.tally);
             const tone =
               v.kind === "extended"
                 ? "bg-emerald-500/20 text-emerald-300"
@@ -252,7 +248,7 @@ export default function AdminPage() {
                   <Avatar c={c} size={40} />
                   <div className="min-w-0">
                     <div className="truncate font-medium">{c.name}</div>
-                    <div className="truncate text-xs text-white/40">{c.major}</div>
+                    <div className="truncate text-xs text-white/40">{c.hometown}</div>
                   </div>
                 </div>
                 <div className={`mt-3 rounded-lg px-2 py-1.5 text-center text-xs font-bold tracking-wide ${tone}`}>
@@ -295,10 +291,9 @@ export default function AdminPage() {
                   <div>
                     <p className="text-sm uppercase tracking-[0.25em] text-amber-300/80">Candidate</p>
                     <h2 className="mt-2 text-4xl font-bold tracking-tight lg:text-6xl">{candidate.name}</h2>
-                    <dl className="mt-5 grid grid-cols-3 gap-4">
+                    <dl className="mt-5 grid grid-cols-2 gap-4">
                       {[
                         ["Year", candidate.year],
-                        ["Major", candidate.major],
                         ["Hometown", candidate.hometown],
                       ].map(([k, v]) => (
                         <div key={k}>
@@ -388,18 +383,6 @@ export default function AdminPage() {
                     className="mt-1 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-base text-white"
                   />
                 </label>
-                <label className="text-xs uppercase tracking-widest text-white/40">
-                  Quorum
-                  <input
-                    id="quorum-input"
-                    type="number"
-                    min={1}
-                    value={quorum}
-                    disabled={locked}
-                    onChange={(e) => setQuorum(Math.max(1, Number(e.target.value) || 30))}
-                    className="mt-1 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-base text-white"
-                  />
-                </label>
               </div>
 
               {status === "open" ? (
@@ -459,7 +442,7 @@ export default function AdminPage() {
               <div className="min-w-0">
                 <div className="truncate font-medium">{c.name}</div>
                 <div className="truncate text-xs text-white/40">
-                  {[c.major, c.hometown].filter(Boolean).join(" · ")}
+                  {c.hometown}
                 </div>
               </div>
             </button>

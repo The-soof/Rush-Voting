@@ -29,7 +29,6 @@ export function AddRusheeDialog({
     const { error } = await supabase.from("candidates").insert({
       name: val("name"),
       hometown: val("hometown"),
-      major: val("major"),
       year: val("year"),
       bio: val("bio"),
       photo_url: val("photo_url"),
@@ -72,14 +71,10 @@ export function AddRusheeDialog({
             <input name="hometown" className={field} autoComplete="off" />
           </label>
           <label className="text-xs uppercase tracking-widest text-white/40">
-            Major
-            <input name="major" className={field} autoComplete="off" />
+            Year
+            <input name="year" placeholder="Freshman..." className={field} autoComplete="off" />
           </label>
         </div>
-        <label className="text-xs uppercase tracking-widest text-white/40">
-          Year
-          <input name="year" placeholder="Freshman, Sophomore..." className={field} autoComplete="off" />
-        </label>
         <label className="text-xs uppercase tracking-widest text-white/40">
           Notes
           <textarea name="bio" rows={3} className={field} />

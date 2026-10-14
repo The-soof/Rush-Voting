@@ -1,3 +1,6 @@
+/** Charter quorum: minimum total ballots (yes + no + abstain). Hard coded. */
+export const QUORUM_REQUIRED = 30;
+
 export type SessionStatus = "idle" | "open" | "closed";
 export type Choice = "yes" | "no" | "abstain";
 
@@ -5,7 +8,6 @@ export interface Candidate {
   id: string;
   name: string;
   year: string | null;
-  major: string | null;
   hometown: string | null;
   bio: string | null;
   photo_url: string | null;
@@ -35,7 +37,8 @@ export type Verdict =
   | { kind: "quorum_failed"; pct: number; total: number; quorum: number };
 
 /** Charter Verdict Engine. Abstentions count toward quorum but not approval. */
-export function computeVerdict(t: Tally, quorumRequired: number): Verdict {
+export function computeVerdict(t: Tally): Verdict {
+  const quorumRequired = QUORUM_REQUIRED;
   const total = t.yes + t.no + t.abstain;
   const decided = t.yes + t.no;
   const pct = decided === 0 ? 0 : (t.yes / decided) * 100;

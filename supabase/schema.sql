@@ -6,7 +6,6 @@ create table if not exists candidates (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   year text,
-  major text,
   hometown text,
   bio text,
   photo_url text,
@@ -38,7 +37,6 @@ create table if not exists votes (
 alter table candidates
   add column if not exists name text,
   add column if not exists year text,
-  add column if not exists major text,
   add column if not exists hometown text,
   add column if not exists bio text,
   add column if not exists photo_url text,
@@ -129,3 +127,6 @@ end $$;
 -- Allow the admin page to add rushees from the UI (anon key; tighten with auth later).
 drop policy if exists "candidates insert" on candidates;
 create policy "candidates insert" on candidates for insert with check (true);
+
+-- Major field removed from candidates.
+alter table candidates drop column if exists major;
